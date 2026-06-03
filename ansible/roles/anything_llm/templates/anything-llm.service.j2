@@ -1,0 +1,21 @@
+[Unit]
+Description=AnythingLLM
+After=docker.service ollama.service
+Requires=docker.service
+
+[Service]
+Restart=always
+ExecStartPre=-/usr/bin/docker rm -f anything-llm
+ExecStart=/usr/bin/docker run --rm \
+  --name anything-llm \
+  -p {{ anything_llm_port }}:3001 \
+  -e NODE_ENV=production \
+  -e STORAGE_DIR=/app/server/storage \
+  -e LLM_PROVIDER=ollama \
+  -e OLLAMA_BASE_URL={{ anything_llm_ollama_url }} \
+  -v /opt/anything-llm/storage:/app/server/storage \
+  {{ anything_llm_image }}
+ExecStop=/usr/bin/docker stop anything-llm
+
+[Install]
+WantedBy=multi-user.target

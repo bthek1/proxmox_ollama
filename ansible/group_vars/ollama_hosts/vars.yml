@@ -1,0 +1,14 @@
+---
+# Ollama
+ollama_model_default: qwen2.5:3b
+ollama_models_extra: []
+ollama_num_parallel: "1"
+ollama_max_loaded_models: "2"
+ollama_flash_attention: "1"
+ollama_keep_alive: 10m
+ollama_host: "0.0.0.0:11434"
+
+# NVIDIA — RTX 3060
+nvidia_driver_package: nvidia-driver-535
+nvidia_extra_packages:
+  - nvidia-cuda-toolkit

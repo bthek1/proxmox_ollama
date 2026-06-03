@@ -1,0 +1,24 @@
+[Unit]
+Description=Open WebUI
+After=docker.service ollama.service
+Requires=docker.service
+
+[Service]
+Restart=always
+ExecStartPre=-/usr/bin/docker rm -f open-webui
+ExecStart=/usr/bin/docker run --rm \
+  --name open-webui \
+  -p {{ open_webui_port }}:8080 \
+  -e OLLAMA_BASE_URL={{ open_webui_ollama_url }} \
+  -e OLLAMA_SHOW_ADMIN_DETAILS=True \
+  -e SCOPED_MODEL_PERMISSIONS=True \
+  -e WEBUI_SECRET_KEY={{ vault_webui_secret_key }} \
+  -e WEBUI_ADMIN_EMAIL={{ vault_webui_admin_email }} \
+  -e WEBUI_ADMIN_USERNAME={{ vault_webui_admin_username }} \
+  -e WEBUI_ADMIN_PASSWORD={{ vault_webui_admin_password }} \
+  -v /opt/open-webui/data:/app/backend/data \
+  {{ open_webui_image }}
+ExecStop=/usr/bin/docker stop open-webui
+
+[Install]
+WantedBy=multi-user.target

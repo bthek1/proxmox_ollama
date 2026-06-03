@@ -1,0 +1,49 @@
+---
+- name: Install Docker (if not present)
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-v2
+    state: present
+    update_cache: true
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Create Open WebUI data directory
+  ansible.builtin.file:
+    path: /opt/open-webui/data
+    state: directory
+    mode: "0755"
+
+- name: Write Open WebUI systemd service
+  ansible.builtin.template:
+    src: open-webui.service.j2
+    dest: /etc/systemd/system/open-webui.service
+    mode: "0644"
+  notify: restart open-webui
+
+- name: Enable and start Open WebUI
+  ansible.builtin.systemd:
+    name: open-webui
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow Open WebUI port through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ open_webui_port }}"
+    proto: tcp
+
+- name: Wait for Open WebUI to be ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ open_webui_port }}/health"
+    status_code: 200
+  register: webui_ready
+  until: webui_ready.status == 200
+  retries: 18
+  delay: 10

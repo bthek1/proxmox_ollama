@@ -1,117 +1,145 @@
-set dotenv-load
-
-# Default model
-MODEL := "qwen2.5:3b"
+OLLAMA_HOST := "192.168.2.202"
+OLLAMA_URL  := "http://" + OLLAMA_HOST + ":11434"
+SSH_USER    := "ubuntu"
+TF_DIR      := "terraform/vm202-ollama"
+ANSIBLE_DIR := "ansible"
+MODEL       := "qwen2.5:3b"
 
 # Show available commands
 default:
     @just --list
 
-# ── Compose service ──────────────────────────────────────────────────────────
+# ── Terraform ───────────────────────────────────────────────────────────────
 
-# Start the Ollama container stack
-[group('Compose Service')]
-up:
-    @echo "Starting Ollama stack..."
-    @docker compose up -d
-    @just status
+# Initialise Terraform (run once)
+[group('Terraform')]
+tf-init:
+    cd {{TF_DIR}} && terraform init
 
-# Stop and remove containers (models are safe — bind mount on host)
-[group('Compose Service')]
-down:
-    @echo "Stopping Ollama stack..."
-    @docker compose down
+# Preview infrastructure changes
+[group('Terraform')]
+tf-plan:
+    cd {{TF_DIR}} && terraform plan
 
-# Restart just the ollama service
-[group('Compose Service')]
-restart:
-    @docker compose restart ollama
-    @just status
+# Provision VM 202 on Proxmox
+[group('Terraform')]
+provision:
+    cd {{TF_DIR}} && terraform init -upgrade && terraform apply
 
-# Show server status, version, and loaded models
-[group('Compose Service')]
+# Destroy VM 202 (DANGEROUS — prompts for confirmation)
+[group('Terraform')]
+tf-destroy:
+    cd {{TF_DIR}} && terraform destroy
+
+# Show Terraform outputs (IP, SSH command)
+[group('Terraform')]
+tf-output:
+    cd {{TF_DIR}} && terraform output
+
+# ── Ansible ─────────────────────────────────────────────────────────────────
+
+# Test connectivity to VM 202
+[group('Ansible')]
+ping:
+    ansible vm202 -i {{ANSIBLE_DIR}}/inventory/hosts.yml -m ping
+
+# Run the full playbook (installs drivers, Ollama, Open WebUI, AnythingLLM)
+[group('Ansible')]
+deploy:
+    ansible-playbook {{ANSIBLE_DIR}}/site.yml \
+        -i {{ANSIBLE_DIR}}/inventory/hosts.yml \
+        --ask-vault-pass
+
+# Dry-run the playbook (no changes applied)
+[group('Ansible')]
+deploy-check:
+    ansible-playbook {{ANSIBLE_DIR}}/site.yml \
+        -i {{ANSIBLE_DIR}}/inventory/hosts.yml \
+        --ask-vault-pass \
+        --check --diff
+
+# Run only the ollama role (skip driver install)
+[group('Ansible')]
+deploy-ollama:
+    ansible-playbook {{ANSIBLE_DIR}}/site.yml \
+        -i {{ANSIBLE_DIR}}/inventory/hosts.yml \
+        --ask-vault-pass \
+        --tags ollama
+
+# Run only the open_webui role
+[group('Ansible')]
+deploy-webui:
+    ansible-playbook {{ANSIBLE_DIR}}/site.yml \
+        -i {{ANSIBLE_DIR}}/inventory/hosts.yml \
+        --ask-vault-pass \
+        --tags open_webui
+
+# Edit encrypted vault secrets
+[group('Ansible')]
+vault-edit:
+    ansible-vault edit {{ANSIBLE_DIR}}/group_vars/ollama_hosts/vault.yml
+
+# Add RTX 3060 PCIe passthrough to VM 202 (run once after provision, requires Proxmox sudo)
+# Proxmox API tokens cannot set unmapped hostpci devices — must go via SSH
+[group('Terraform')]
+gpu-passthrough:
+    ssh proxmox "echo 3719 | sudo -Sp '' qm set 202 --hostpci0 '0000:01:00,pcie=1,rombar=1' --vga none"
+    @echo "GPU passthrough added. VM 202 must be stopped first, then started: just vm-start"
+
+# Stop VM 202 on Proxmox (required before changing hardware)
+[group('Terraform')]
+vm-stop:
+    ssh proxmox "echo 3719 | sudo -Sp '' qm stop 202"
+
+# Start VM 202 on Proxmox
+[group('Terraform')]
+vm-start:
+    ssh proxmox "echo 3719 | sudo -Sp '' qm start 202"
+
+# ── VM 202 Operations ───────────────────────────────────────────────────────
+
+# SSH into VM 202
+[group('VM 202')]
+ssh:
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}}
+
+# Query Ollama API status, GPU, and loaded models
+[group('VM 202')]
 status:
     @python3 scripts/status.py
 
-# ── Model management ────────────────────────────────────────────────────────
-
-# Show info about the default model (or pass MODEL=<name>)
-[group('Model Management')]
-model:
-    @echo "Model: {{MODEL}}"
-    @docker exec ollama ollama show {{MODEL}}
-
-# List all locally downloaded models
-[group('Model Management')]
+# List all downloaded models on VM 202
+[group('VM 202')]
 models:
-    @docker exec ollama ollama list
+    @curl -s {{OLLAMA_URL}}/api/tags | python3 -c \
+        "import json,sys; [print(m['name'], f\"{m.get('size',0)/1e9:.2f}GB\") for m in json.load(sys.stdin).get('models',[])]"
 
-# Pull (download) a model  — usage: just pull MODEL=mistral
-[group('Model Management')]
+# Pull a model — usage: just pull mistral
+[group('VM 202')]
 pull model=MODEL:
-    @echo "Pulling model: {{model}}"
-    @docker exec ollama ollama pull {{model}}
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} "ollama pull {{model}}"
 
-# Remove a model  — usage: just remove MODEL=llama3.2
-[group('Model Management')]
+# Remove a model — usage: just remove mistral
+[group('VM 202')]
 remove model=MODEL:
-    @echo "Removing model: {{model}}"
-    @docker exec ollama ollama rm {{model}}
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} "ollama rm {{model}}"
 
-# Unload a model from GPU memory  — usage: just unload MODEL=llama3.2
-[group('Model Management')]
-unload model=MODEL:
-    @echo "Unloading model from GPU: {{model}}"
-    @docker exec ollama ollama stop {{model}}
-    @just status
-
-# ── Inference ───────────────────────────────────────────────────────────────
-
-# Run a one-shot prompt  — usage: just run "Tell me a joke"
-[group('Inference')]
-run prompt="Hello!":
-    @docker exec -it ollama ollama run {{MODEL}} "{{prompt}}"
-
-# Start an interactive chat session
-[group('Inference')]
-chat:
-    @docker exec -it ollama ollama run {{MODEL}}
-
-# ── Python / project ────────────────────────────────────────────────────────
-
-# Install Python dependencies with uv
-[group('Python / Project')]
-install:
-    uv sync
-
-# Run main.py
-[group('Python / Project')]
-demo:
-    uv run python main.py
-
-# Build a custom model from the local Modelfile
-[group('Python / Project')]
-build name="analysis-assistant":
-    @echo "Building custom model '{{name}}' from Modelfile..."
-    @docker cp Modelfile ollama:/tmp/Modelfile
-    @docker exec ollama ollama create {{name}} -f /tmp/Modelfile
-    @echo "Done. Run: just run MODEL={{name}}"
-
-# ── Diagnostics ─────────────────────────────────────────────────────────────
-
-# Show GPU info from inside the container
-[group('Diagnostics')]
+# Show GPU stats on VM 202
+[group('VM 202')]
 gpu:
-    @docker exec ollama nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu \
-        --format=csv,noheader,nounits 2>/dev/null \
-        || echo "No NVIDIA GPU detected inside container."
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} nvidia-smi
 
-# Tail live logs from the ollama container
-[group('Diagnostics')]
+# Tail Ollama systemd logs on VM 202
+[group('VM 202')]
 logs:
-    @docker compose logs -f ollama
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} "journalctl -fu ollama"
 
-# Show disk usage of the models directory (host-side bind mount)
-[group('Diagnostics')]
-disk:
-    @du -sh ~/ollama_doc/models 2>/dev/null || echo "Models directory not found."
+# Restart Ollama service on VM 202
+[group('VM 202')]
+restart-ollama:
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} "sudo systemctl restart ollama"
+
+# Check all service statuses on VM 202
+[group('VM 202')]
+service-status:
+    ssh {{SSH_USER}}@{{OLLAMA_HOST}} "systemctl status ollama open-webui anything-llm"

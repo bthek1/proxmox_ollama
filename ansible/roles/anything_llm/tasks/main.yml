@@ -1,0 +1,26 @@
+---
+- name: Create AnythingLLM storage directory
+  ansible.builtin.file:
+    path: /opt/anything-llm/storage
+    state: directory
+    mode: "0755"
+
+- name: Write AnythingLLM systemd service
+  ansible.builtin.template:
+    src: anything-llm.service.j2
+    dest: /etc/systemd/system/anything-llm.service
+    mode: "0644"
+  notify: restart anything-llm
+
+- name: Enable and start AnythingLLM
+  ansible.builtin.systemd:
+    name: anything-llm
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow AnythingLLM port through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ anything_llm_port }}"
+    proto: tcp

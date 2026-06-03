@@ -1,0 +1,5 @@
+---
+- name: reboot if driver newly installed
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+    msg: "Rebooting after NVIDIA driver install"

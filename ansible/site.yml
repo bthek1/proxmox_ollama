@@ -1,0 +1,8 @@
+---
+- name: Configure Ollama VM 202
+  hosts: ollama_hosts
+  become: true
+
+  roles:
+    - nvidia_drivers
+    - ollama

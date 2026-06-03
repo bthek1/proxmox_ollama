@@ -1,0 +1,69 @@
+---
+- name: Install Ollama via official install script
+  ansible.builtin.shell: |
+    curl -fsSL https://ollama.com/install.sh | sh
+  args:
+    creates: /usr/local/bin/ollama  # idempotent: skip if already installed
+
+- name: Create Ollama systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/ollama.service.d
+    state: directory
+    mode: "0755"
+
+- name: Write Ollama systemd environment override
+  ansible.builtin.template:
+    src: ollama-env.conf.j2
+    dest: /etc/systemd/system/ollama.service.d/env.conf
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart ollama
+
+- name: Enable and start Ollama service
+  ansible.builtin.systemd:
+    name: ollama
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for Ollama API to be ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:11434/api/version"
+    status_code: 200
+  register: ollama_ready
+  until: ollama_ready.status == 200
+  retries: 12
+  delay: 5
+
+- name: Pull default model
+  ansible.builtin.command: ollama pull {{ ollama_model_default }}
+  environment:
+    OLLAMA_HOST: "http://127.0.0.1:11434"
+  changed_when: true
+
+- name: Pull extra models
+  ansible.builtin.command: ollama pull {{ item }}
+  environment:
+    OLLAMA_HOST: "http://127.0.0.1:11434"
+  loop: "{{ ollama_models_extra }}"
+  changed_when: true
+  when: ollama_models_extra | length > 0
+
+- name: Copy analysis-assistant Modelfile
+  ansible.builtin.template:
+    src: Modelfile.j2
+    dest: /tmp/Modelfile
+    mode: "0644"
+
+- name: Create analysis-assistant custom model
+  ansible.builtin.command: ollama create analysis-assistant -f /tmp/Modelfile
+  environment:
+    OLLAMA_HOST: "http://127.0.0.1:11434"
+  changed_when: true
+
+- name: Allow Ollama port through UFW
+  community.general.ufw:
+    rule: allow
+    port: "11434"
+    proto: tcp

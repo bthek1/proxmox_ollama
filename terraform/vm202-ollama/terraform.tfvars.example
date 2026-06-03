@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+
+proxmox_node = "pve"
+vm_id        = 202
+vm_name      = "ollama-202"
+
+# ID of your Ubuntu 24.04 cloud-init template VM on Proxmox
+template_id = 9000
+
+cores     = 8
+memory_mb = 16384  # 16 GB
+
+disk_size  = 80
+datastore  = "local-lvm"
+
+ip_address = "192.168.2.202/24"
+gateway    = "192.168.2.1"
+dns_servers = ["1.1.1.1", "8.8.8.8"]
+
+# Paste your public key: cat ~/.ssh/id_ed25519.pub
+ssh_public_key = "ssh-ed25519 AAAA... user@host"
+
+# PCI ID of RTX 3060 on the Proxmox host.
+# Find it with: ssh root@<proxmox> lspci | grep -i nvidia
+# e.g. "01:00.0 VGA compatible controller: NVIDIA GeForce RTX 3060"
+gpu_pci_id = "0000:01:00.0"

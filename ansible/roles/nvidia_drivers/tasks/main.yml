@@ -1,0 +1,37 @@
+---
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - software-properties-common
+    state: present
+    update_cache: true
+
+- name: Add NVIDIA apt key
+  ansible.builtin.apt_key:
+    url: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub
+    state: present
+
+- name: Add NVIDIA CUDA apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64 /"
+    state: present
+    filename: nvidia-cuda
+
+- name: Install NVIDIA driver and CUDA packages
+  ansible.builtin.apt:
+    name: "{{ [nvidia_driver_package] + nvidia_extra_packages }}"
+    state: present
+    update_cache: true
+  notify: reboot if driver newly installed
+
+- name: Verify nvidia-smi works
+  ansible.builtin.command: nvidia-smi --query-gpu=name --format=csv,noheader
+  register: nvidia_smi_out
+  changed_when: false
+  failed_when: nvidia_smi_out.rc != 0
+
+- name: Show detected GPU
+  ansible.builtin.debug:
+    msg: "GPU detected: {{ nvidia_smi_out.stdout }}"
