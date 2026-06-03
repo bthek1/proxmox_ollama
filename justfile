@@ -120,10 +120,10 @@ ct-start:
 ssh:
     ssh {{SSH_USER}}@{{OLLAMA_HOST}}
 
-# Query Ollama API status, GPU, and loaded models
+# Test Ollama API — health, models, generate, stream, chat, embeddings
 [group('VM 202')]
-status:
-    @python3 scripts/status.py
+test-api model=MODEL:
+    MODEL={{model}} uv run python scripts/test_ollama.py
 
 # List all downloaded models on VM 202
 [group('VM 202')]

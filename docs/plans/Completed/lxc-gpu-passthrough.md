@@ -151,12 +151,14 @@ roles:
 ## Phase 4 — Validation
 
 ```
-Ollama API:    curl http://192.168.2.202:11434/api/version  → {"version":"0.30.2"}
-Models:        qwen2.5:3b (1.93 GB), analysis-assistant:latest (1.93 GB)
-GPU:           NVIDIA GeForce RTX 3060, driver 595.71.05, 12288 MiB VRAM
-Inference:     curl /api/generate → response "Hiya!" (GPU, done_reason: stop)
-Open WebUI:    http://192.168.2.202:3000  → HTTP 200
-AnythingLLM:   http://192.168.2.202:3001  → HTTP 200
+Ollama API:      curl http://192.168.2.202:11434/api/version  → {"version":"0.30.2"}
+Models:          qwen2.5:3b (1.93 GB), analysis-assistant:latest (1.93 GB), nomic-embed-text (0.27 GB)
+GPU:             NVIDIA GeForce RTX 3060, driver 595.71.05, 12288 MiB VRAM
+Inference:       curl /api/generate → response confirmed (GPU, done_reason: stop)
+Embeddings:      POST /api/embed with nomic-embed-text → 768-dim vectors  ✓
+Open WebUI:      http://192.168.2.202:3000  → HTTP 200
+AnythingLLM:     http://192.168.2.202:3001  → HTTP 200
+API test suite:  just test-api → all 6 sections PASS
 ```
 
 ---

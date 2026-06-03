@@ -13,6 +13,7 @@ Terraform + Ansible infrastructure for running Ollama on a Proxmox LXC container
 | Provision   | SSH + pct | Create privileged LXC container 202 on Proxmox             |
 | Configure   | Ansible   | Install NVIDIA userspace libs, Ollama, Open WebUI, AnythingLLM |
 | Task runner | just      | Wrap common SSH/Ansible ops                                |
+| Dev tooling | uv        | Python 3.12 environment for local API testing              |
 
 > **Note:** `just provision` uses `pct create` over SSH — not `terraform apply`. Proxmox API tokens cannot create privileged containers even as `root@pam`, so Terraform is used for config documentation only.
 
@@ -23,6 +24,14 @@ Terraform + Ansible infrastructure for running Ollama on a Proxmox LXC container
 | Ollama API    | 11434 | `http://192.168.2.202:11434`     |
 | Open WebUI    | 3000  | `http://192.168.2.202:3000`      |
 | AnythingLLM   | 3001  | `http://192.168.2.202:3001`      |
+
+### Models on LXC 202
+
+| Model | Size | Purpose |
+|-------|------|---------|
+| `qwen2.5:3b` | 1.93 GB | Default generation model |
+| `analysis-assistant` | 1.93 GB | Custom model built on qwen2.5:3b via Modelfile |
+| `nomic-embed-text` | 0.27 GB | Embeddings (768-dim vectors, used by AnythingLLM RAG) |
 
 ---
 
@@ -44,7 +53,7 @@ just gpu-passthrough
 just deploy
 
 # 5. Verify
-just status
+just test-api
 ```
 
 ---
@@ -73,14 +82,17 @@ proxmox_ollama/
 │       ├── secrets.auto.tfvars.example
 │       └── terraform.tfvars.example
 ├── scripts/
-│   ├── status.py             # queries Ollama API and prints status
+│   ├── test_ollama.py        # Ollama API test client (health, models, generate, chat, embeddings)
 │   └── lxc-202-gpu.conf      # LXC conf lines appended by just gpu-passthrough
 ├── docs/
 │   ├── docker-ollama-reference.md
 │   ├── proxmox-lxc-terraform-guide.md
 │   └── plans/Completed/
-│       ├── lxc-gpu-passthrough.md   # completed plan + lessons learned
-│       └── migrate-to-terraform-ansible.md
+│       ├── lxc-gpu-passthrough.md       # completed plan + lessons learned
+│       ├── migrate-to-terraform-ansible.md
+│       └── uv-ollama-test-client.md     # completed plan + lessons learned
+├── pyproject.toml            # uv project (proxmox-ollama-tools, Python 3.12)
+├── uv.lock                   # pinned dependencies
 ├── justfile
 └── CLAUDE.md
 ```
@@ -91,6 +103,7 @@ proxmox_ollama/
 
 - Ansible >= 2.14
 - `just` task runner
+- `uv` — Python package manager ([install](https://docs.astral.sh/uv/getting-started/installation/))
 - SSH key at `~/.ssh/id_ed25519` (injected into container root at provision time)
 - SSH alias `proxmox` → `ben@192.168.2.70` configured in `~/.ssh/config`
 
@@ -103,7 +116,7 @@ just provision          # create LXC container 202 via pct over SSH
 just gpu-passthrough    # append GPU + AppArmor config to /etc/pve/lxc/202.conf, restart container
 just deploy             # run ansible-playbook site.yml (no vault password needed)
 just deploy-check       # dry run (--check --diff)
-just status             # query Ollama API — version, models, GPU
+just test-api           # run Ollama API test suite — health, models, generate, stream, chat, embeddings
 just models             # list downloaded models and sizes
 just pull mistral       # pull a model by name
 just logs               # tail Ollama systemd logs
@@ -111,6 +124,14 @@ just gpu                # nvidia-smi on container 202
 just ssh                # SSH into container 202 as root
 just ct-stop            # stop LXC container 202
 just ct-start           # start LXC container 202
+```
+
+### API test client
+
+```bash
+just test-api                                   # defaults: qwen2.5:3b + nomic-embed-text
+MODEL=analysis-assistant just test-api          # use a different generation model
+EMBED_MODEL=mxbai-embed-large just test-api     # use a different embedding model
 ```
 
 ---
@@ -137,11 +158,13 @@ Token must belong to `root@pam` — other users are blocked from privileged cont
 | Ollama install script needs `zstd` | Added as apt prerequisite in the `ollama` role |
 | AnythingLLM SQLite can't write to mounted volume | Storage dir created with `mode: 0777` |
 | `just` heredocs can't contain `lxc.*` lines | GPU config lives in `scripts/lxc-202-gpu.conf`, applied via `scp` |
+| Ollama 0.30.2 doesn't support embeddings for chat models | Use `nomic-embed-text` — a dedicated embedding model that works correctly |
 
 ---
 
 ## Reference
 
 - [LXC GPU Passthrough Plan](docs/plans/Completed/lxc-gpu-passthrough.md) — completed, full lessons learned
+- [uv + Ollama API Client Plan](docs/plans/Completed/uv-ollama-test-client.md) — completed, embedding gotcha explained
 - [Proxmox LXC Terraform Guide](docs/proxmox-lxc-terraform-guide.md)
 - [Docker Ollama Reference](docs/docker-ollama-reference.md) — archived Docker knowledge

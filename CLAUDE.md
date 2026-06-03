@@ -36,8 +36,9 @@ Terraform + Ansible infrastructure to deploy Ollama (local LLM inference) on **L
 | `ansible/roles/open_webui/` | Open WebUI deployment |
 | `ansible/roles/anything_llm/` | AnythingLLM deployment |
 | `justfile` | Task runner |
-| `scripts/status.py` | Query Ollama API on container 202 |
+| `scripts/test_ollama.py` | Ollama API test client (health, models, generate, stream, chat, embeddings) |
 | `scripts/lxc-202-gpu.conf` | LXC config lines for GPU passthrough + AppArmor (appended by `just gpu-passthrough`) |
+| `pyproject.toml` | uv project — Python deps (`ollama`, `httpx`, `rich`) |
 | `docs/docker-ollama-reference.md` | Archived Docker knowledge |
 
 ## Common Commands
@@ -46,7 +47,7 @@ Terraform + Ansible infrastructure to deploy Ollama (local LLM inference) on **L
 just provision          # create LXC container via pct over SSH (not terraform apply)
 just gpu-passthrough    # patch /etc/pve/lxc/202.conf + restart (run once after provision)
 just deploy             # ansible-playbook site.yml
-just status             # query http://192.168.2.202:11434
+just test-api           # run Ollama API test suite against 192.168.2.202:11434
 just gpu                # nvidia-smi on container 202
 just ssh                # SSH into container 202
 ```
