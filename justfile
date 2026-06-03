@@ -1,6 +1,6 @@
 OLLAMA_HOST := "192.168.2.202"
 OLLAMA_URL  := "http://" + OLLAMA_HOST + ":11434"
-SSH_USER    := "ubuntu"
+SSH_USER    := "root"
 TF_DIR      := "terraform/vm202-ollama"
 ANSIBLE_DIR := "ansible"
 MODEL       := "qwen2.5:3b"
@@ -21,10 +21,25 @@ tf-init:
 tf-plan:
     cd {{TF_DIR}} && terraform plan
 
-# Provision VM 202 on Proxmox
+SSH_PUBKEY := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPv/mGCYJ3q949/gsm90nbMs9Cq7FOhVGmWfmf5MDwbT rag"
+
+# Create LXC container 202 directly via pct (Proxmox API tokens cannot create privileged containers)
 [group('Terraform')]
 provision:
-    cd {{TF_DIR}} && terraform init -upgrade && terraform apply
+    ssh proxmox "echo 3719 | sudo -Sp '' bash -c 'echo \"{{SSH_PUBKEY}}\" > /tmp/ollama-202.pub'"
+    ssh proxmox "echo 3719 | sudo -Sp '' pct create 202 local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst \
+      --hostname ollama-202 \
+      --memory 16384 \
+      --cores 8 \
+      --net0 name=eth0,bridge=vmbr0,ip=192.168.2.202/24,gw=192.168.2.1 \
+      --rootfs local-lvm:80 \
+      --unprivileged 0 \
+      --features nesting=1 \
+      --ssh-public-keys /tmp/ollama-202.pub \
+      --nameserver '1.1.1.1 8.8.8.8' \
+      --onboot 1"
+    ssh proxmox "echo 3719 | sudo -Sp '' rm -f /tmp/ollama-202.pub"
+    @echo "Container 202 created. Run: just gpu-passthrough && just ct-start"
 
 # Destroy VM 202 (DANGEROUS — prompts for confirmation)
 [group('Terraform')]
@@ -83,20 +98,8 @@ vault-edit:
 # Terraform cannot write raw LXC config lines — must go via SSH on the Proxmox host
 [group('Terraform')]
 gpu-passthrough:
-    ssh proxmox "echo 3719 | sudo -Sp '' tee -a /etc/pve/lxc/202.conf" << 'EOF'
-# NVIDIA RTX 3060 GPU passthrough
-# Major 195 = /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-modeset
-lxc.cgroup2.devices.allow: c 195:* rwm
-# Major 504 = /dev/nvidia-uvm, /dev/nvidia-uvm-tools
-lxc.cgroup2.devices.allow: c 504:* rwm
-# Major 508 = /dev/nvidia-caps/*
-lxc.cgroup2.devices.allow: c 508:* rwm
-lxc.mount.entry: /dev/nvidia0 dev/nvidia0 none bind,optional,create=file
-lxc.mount.entry: /dev/nvidiactl dev/nvidiactl none bind,optional,create=file
-lxc.mount.entry: /dev/nvidia-modeset dev/nvidia-modeset none bind,optional,create=file
-lxc.mount.entry: /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file
-lxc.mount.entry: /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file
-EOF
+    scp scripts/lxc-202-gpu.conf proxmox:/tmp/lxc-202-gpu.conf
+    ssh proxmox "echo 3719 | sudo -Sp '' bash -c 'cat /tmp/lxc-202-gpu.conf >> /etc/pve/lxc/202.conf && rm /tmp/lxc-202-gpu.conf'"
     ssh proxmox "echo 3719 | sudo -Sp '' pct stop 202 && echo 3719 | sudo -Sp '' pct start 202"
     @echo "GPU passthrough added and container 202 restarted."
 

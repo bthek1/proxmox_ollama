@@ -11,3 +11,17 @@ ollama_host: "0.0.0.0:11434"
 # NVIDIA — RTX 3060
 # Must match the host kernel module version (595.71.05)
 nvidia_driver_version: "595"
+
+# Open WebUI
+open_webui_port: 3000
+open_webui_image: "ghcr.io/open-webui/open-webui:main"
+open_webui_ollama_url: "http://192.168.2.202:11434"
+vault_webui_secret_key: "changeme-replace-with-secure-key"
+vault_webui_admin_email: "admin@local"
+vault_webui_admin_username: "admin"
+vault_webui_admin_password: "changeme"
+
+# AnythingLLM
+anything_llm_port: 3001
+anything_llm_image: "mintplexlabs/anythingllm:latest"
+anything_llm_ollama_url: "http://192.168.2.202:11434"

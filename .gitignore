@@ -17,6 +17,7 @@ terraform/vm202-ollama/.terraform.lock.hcl
 terraform/vm202-ollama/terraform.tfstate
 terraform/vm202-ollama/terraform.tfstate.backup
 terraform/vm202-ollama/terraform.tfvars
+terraform/vm202-ollama/secrets.auto.tfvars
 
 # Ansible vault (encrypt before committing, or keep out entirely)
 ansible/group_vars/ollama_hosts/vault.yml

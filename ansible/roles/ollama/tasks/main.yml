@@ -1,4 +1,10 @@
 ---
+- name: Install zstd (required by Ollama install script)
+  ansible.builtin.apt:
+    name: zstd
+    state: present
+    update_cache: false
+
 - name: Install Ollama via official install script
   ansible.builtin.shell: |
     curl -fsSL https://ollama.com/install.sh | sh

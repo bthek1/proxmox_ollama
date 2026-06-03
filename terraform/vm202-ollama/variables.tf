@@ -1,7 +1,25 @@
+variable "proxmox_endpoint" {
+  description = "Proxmox API endpoint (e.g. https://192.168.2.70:8006)"
+  type        = string
+  default     = "https://192.168.2.70:8006"
+}
+
+variable "proxmox_api_token_id" {
+  description = "Proxmox API token ID — must be root@pam to create privileged containers (e.g. root@pam!terraform)"
+  type        = string
+  default     = "root@pam!terraform"
+}
+
+variable "proxmox_api_token_secret" {
+  description = "Proxmox API token secret UUID"
+  type        = string
+  sensitive   = true
+}
+
 variable "proxmox_node" {
   description = "Proxmox node name to create the container on"
   type        = string
-  default     = "pve"
+  default     = "bthek1"
 }
 
 variable "vm_id" {
