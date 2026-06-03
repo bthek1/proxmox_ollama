@@ -1,0 +1,2 @@
+---
+# No reboot handler — kernel module lives on the Proxmox host, not the container

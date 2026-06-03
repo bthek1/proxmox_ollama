@@ -1,8 +1,10 @@
 ---
-- name: Configure Ollama VM 202
+- name: Configure Ollama LXC 202
   hosts: ollama_hosts
   become: true
 
   roles:
-    - nvidia_drivers
+    - nvidia_userspace   # install matching userspace libs (no kernel module — driver lives on host)
     - ollama
+    - open_webui
+    - anything_llm

@@ -19,14 +19,15 @@
     state: present
     filename: nvidia-cuda
 
-- name: Install NVIDIA driver and CUDA packages
+- name: Install NVIDIA userspace libraries (must match host driver {{ nvidia_driver_version }})
   ansible.builtin.apt:
-    name: "{{ [nvidia_driver_package] + nvidia_extra_packages }}"
+    name:
+      - "nvidia-utils-{{ nvidia_driver_version }}"
+      - "libnvidia-compute-{{ nvidia_driver_version }}"
     state: present
     update_cache: true
-  notify: reboot if driver newly installed
 
-- name: Verify nvidia-smi works
+- name: Verify nvidia-smi sees the GPU
   ansible.builtin.command: nvidia-smi --query-gpu=name --format=csv,noheader
   register: nvidia_smi_out
   changed_when: false

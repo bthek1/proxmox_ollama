@@ -79,22 +79,36 @@ deploy-webui:
 vault-edit:
     ansible-vault edit {{ANSIBLE_DIR}}/group_vars/ollama_hosts/vault.yml
 
-# Add RTX 3060 PCIe passthrough to VM 202 (run once after provision, requires Proxmox sudo)
-# Proxmox API tokens cannot set unmapped hostpci devices — must go via SSH
+# Patch /etc/pve/lxc/202.conf with NVIDIA device mounts (run once after provision)
+# Terraform cannot write raw LXC config lines — must go via SSH on the Proxmox host
 [group('Terraform')]
 gpu-passthrough:
-    ssh proxmox "echo 3719 | sudo -Sp '' qm set 202 --hostpci0 '0000:01:00,pcie=1,rombar=1' --vga none"
-    @echo "GPU passthrough added. VM 202 must be stopped first, then started: just vm-start"
+    ssh proxmox "echo 3719 | sudo -Sp '' tee -a /etc/pve/lxc/202.conf" << 'EOF'
+# NVIDIA RTX 3060 GPU passthrough
+# Major 195 = /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-modeset
+lxc.cgroup2.devices.allow: c 195:* rwm
+# Major 504 = /dev/nvidia-uvm, /dev/nvidia-uvm-tools
+lxc.cgroup2.devices.allow: c 504:* rwm
+# Major 508 = /dev/nvidia-caps/*
+lxc.cgroup2.devices.allow: c 508:* rwm
+lxc.mount.entry: /dev/nvidia0 dev/nvidia0 none bind,optional,create=file
+lxc.mount.entry: /dev/nvidiactl dev/nvidiactl none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-modeset dev/nvidia-modeset none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file
+EOF
+    ssh proxmox "echo 3719 | sudo -Sp '' pct stop 202 && echo 3719 | sudo -Sp '' pct start 202"
+    @echo "GPU passthrough added and container 202 restarted."
 
-# Stop VM 202 on Proxmox (required before changing hardware)
+# Stop container 202 on Proxmox
 [group('Terraform')]
-vm-stop:
-    ssh proxmox "echo 3719 | sudo -Sp '' qm stop 202"
+ct-stop:
+    ssh proxmox "echo 3719 | sudo -Sp '' pct stop 202"
 
-# Start VM 202 on Proxmox
+# Start container 202 on Proxmox
 [group('Terraform')]
-vm-start:
-    ssh proxmox "echo 3719 | sudo -Sp '' qm start 202"
+ct-start:
+    ssh proxmox "echo 3719 | sudo -Sp '' pct start 202"
 
 # ── VM 202 Operations ───────────────────────────────────────────────────────
 

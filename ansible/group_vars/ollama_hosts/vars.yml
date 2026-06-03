@@ -9,6 +9,5 @@ ollama_keep_alive: 10m
 ollama_host: "0.0.0.0:11434"
 
 # NVIDIA — RTX 3060
-nvidia_driver_package: nvidia-driver-535
-nvidia_extra_packages:
-  - nvidia-cuda-toolkit
+# Must match the host kernel module version (595.71.05)
+nvidia_driver_version: "595"

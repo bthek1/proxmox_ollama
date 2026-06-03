@@ -1,24 +1,24 @@
 variable "proxmox_node" {
-  description = "Proxmox node name to create the VM on"
+  description = "Proxmox node name to create the container on"
   type        = string
   default     = "pve"
 }
 
 variable "vm_id" {
-  description = "Proxmox VM ID"
+  description = "Proxmox container ID"
   type        = number
   default     = 202
 }
 
 variable "vm_name" {
-  description = "VM hostname"
+  description = "Container hostname"
   type        = string
   default     = "ollama-202"
 }
 
-variable "template_id" {
-  description = "VM ID of the cloud-init Ubuntu template to clone from"
-  type        = number
+variable "template_file_id" {
+  description = "LXC template file ID on Proxmox (e.g. local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst)"
+  type        = string
 }
 
 variable "cores" {
@@ -34,7 +34,7 @@ variable "memory_mb" {
 }
 
 variable "disk_size" {
-  description = "Primary disk size in GB"
+  description = "Root disk size in GB"
   type        = number
   default     = 80
 }
@@ -64,12 +64,6 @@ variable "dns_servers" {
 }
 
 variable "ssh_public_key" {
-  description = "SSH public key to inject via cloud-init"
+  description = "SSH public key to inject into the container"
   type        = string
-}
-
-variable "gpu_pci_id" {
-  description = "PCI device ID of the RTX 3060 on the Proxmox host (e.g. '0000:01:00') — used by `just gpu-passthrough` post-apply"
-  type        = string
-  default     = "0000:01:00"
 }
