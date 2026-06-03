@@ -165,6 +165,7 @@ Token must belong to `root@pam` — other users are blocked from privileged cont
 ## Reference
 
 - [Ollama API Reference](docs/ollama-api-reference.md) — connection details, endpoints, Python/JS/LangChain examples
+- [LLM Pipeline Patterns](docs/llm-pipelines.md) — direct inference, chat, RAG, agents, chaining, map-reduce with ASCII diagrams
 - [LXC GPU Passthrough Plan](docs/plans/Completed/lxc-gpu-passthrough.md) — completed, full lessons learned
 - [uv + Ollama API Client Plan](docs/plans/Completed/uv-ollama-test-client.md) — completed, embedding gotcha explained
 - [Proxmox LXC Terraform Guide](docs/proxmox-lxc-terraform-guide.md)

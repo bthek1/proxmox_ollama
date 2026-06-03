@@ -29,8 +29,9 @@ provision:
     ssh proxmox "echo 3719 | sudo -Sp '' bash -c 'echo \"{{SSH_PUBKEY}}\" > /tmp/ollama-202.pub'"
     ssh proxmox "echo 3719 | sudo -Sp '' pct create 202 local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst \
       --hostname ollama-202 \
-      --memory 16384 \
-      --cores 8 \
+      --memory 4096 \
+      --swap 2048 \
+      --cores 4 \
       --net0 name=eth0,bridge=vmbr0,ip=192.168.2.202/24,gw=192.168.2.1 \
       --rootfs local-lvm:80 \
       --unprivileged 0 \
