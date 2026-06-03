@@ -8,11 +8,13 @@ Terraform + Ansible infrastructure for running Ollama on a Proxmox LXC container
 
 ## Stack
 
-| Layer     | Tool      | Purpose                                      |
-|-----------|-----------|----------------------------------------------|
-| Provision | Terraform | Create/manage LXC container 202 on Proxmox   |
-| Configure | Ansible   | Install NVIDIA userspace libs, Ollama, UIs   |
-| Task runner | just    | Wrap common terraform/ansible/SSH ops         |
+| Layer       | Tool      | Purpose                                                    |
+|-------------|-----------|------------------------------------------------------------|
+| Provision   | SSH + pct | Create privileged LXC container 202 on Proxmox             |
+| Configure   | Ansible   | Install NVIDIA userspace libs, Ollama, Open WebUI, AnythingLLM |
+| Task runner | just      | Wrap common SSH/Ansible ops                                |
+
+> **Note:** `just provision` uses `pct create` over SSH — not `terraform apply`. Proxmox API tokens cannot create privileged containers even as `root@pam`, so Terraform is used for config documentation only.
 
 ### Services on LXC 202
 
@@ -27,17 +29,18 @@ Terraform + Ansible infrastructure for running Ollama on a Proxmox LXC container
 ## Quick Start
 
 ```bash
-# 1. Set Proxmox credentials
-export PROXMOX_VE_ENDPOINT="https://<proxmox-host>:8006/"
-export PROXMOX_VE_API_TOKEN="root@pam!terraform=<secret>"
+# 1. Fill in Proxmox credentials
+cp terraform/vm202-ollama/secrets.auto.tfvars.example \
+   terraform/vm202-ollama/secrets.auto.tfvars
+# Edit secrets.auto.tfvars — set proxmox_api_token_secret
 
-# 2. Provision LXC container 202
+# 2. Create LXC container 202 (via pct over SSH)
 just provision
 
-# 3. Patch GPU device mounts into /etc/pve/lxc/202.conf (run once)
+# 3. Patch GPU device mounts into /etc/pve/lxc/202.conf (run once after provision)
 just gpu-passthrough
 
-# 4. Configure container (install NVIDIA libs, Ollama, UIs)
+# 4. Install NVIDIA libs, Ollama, Open WebUI, AnythingLLM
 just deploy
 
 # 5. Verify
@@ -53,30 +56,31 @@ proxmox_ollama/
 ├── ansible/
 │   ├── inventory/hosts.yml
 │   ├── group_vars/ollama_hosts/
-│   │   ├── vars.yml          # non-secret config
-│   │   └── vault.yml         # encrypted secrets (ansible-vault)
+│   │   ├── vars.yml          # non-secret config (models, ports, driver version)
+│   │   └── vault.yml         # secrets placeholder (not yet encrypted)
 │   ├── roles/
-│   │   ├── nvidia_userspace/ # userspace libs matching Proxmox host driver (595.71.05)
-│   │   ├── ollama/
-│   │   ├── open_webui/
-│   │   └── anything_llm/
+│   │   ├── nvidia_userspace/ # installs userspace libs matching host driver 595.71.05
+│   │   ├── ollama/           # Ollama binary, systemd service, model pull
+│   │   ├── open_webui/       # Docker container on port 3000
+│   │   └── anything_llm/     # Docker container on port 3001
 │   └── site.yml
 ├── terraform/
 │   └── vm202-ollama/
-│       ├── versions.tf
 │       ├── provider.tf
 │       ├── variables.tf
-│       ├── main.tf
+│       ├── main.tf           # documents intended LXC config
 │       ├── outputs.tf
+│       ├── secrets.auto.tfvars.example
 │       └── terraform.tfvars.example
-├── docs/
-│   ├── docker-ollama-reference.md   # archived Docker knowledge
-│   ├── proxmox-lxc-terraform-guide.md
-│   ├── django-drf-react-rag-ollama.md
-│   └── plans/
-│       └── migrate-to-terraform-ansible.md
 ├── scripts/
-│   └── status.py                    # queries VM 202 Ollama API
+│   ├── status.py             # queries Ollama API and prints status
+│   └── lxc-202-gpu.conf      # LXC conf lines appended by just gpu-passthrough
+├── docs/
+│   ├── docker-ollama-reference.md
+│   ├── proxmox-lxc-terraform-guide.md
+│   └── plans/Completed/
+│       ├── lxc-gpu-passthrough.md   # completed plan + lessons learned
+│       └── migrate-to-terraform-ansible.md
 ├── justfile
 └── CLAUDE.md
 ```
@@ -85,55 +89,59 @@ proxmox_ollama/
 
 ## Prerequisites
 
-- Terraform >= 1.5
 - Ansible >= 2.14
 - `just` task runner
-- SSH key at `~/.ssh/id_ed25519`
-- Proxmox API token (see `docs/proxmox-lxc-terraform-guide.md`)
+- SSH key at `~/.ssh/id_ed25519` (injected into container root at provision time)
+- SSH alias `proxmox` → `ben@192.168.2.70` configured in `~/.ssh/config`
 
 ---
 
 ## Common Commands
 
 ```bash
-just provision          # terraform init + apply (create LXC container)
-just gpu-passthrough    # patch GPU mounts into /etc/pve/lxc/202.conf (once after provision)
-just deploy             # ansible-playbook site.yml
-just deploy-check       # dry run (--check)
-just status             # query Ollama API on container 202
-just models             # list models on container 202
-just pull mistral       # pull a model
-just logs               # tail Ollama systemd logs on container 202
+just provision          # create LXC container 202 via pct over SSH
+just gpu-passthrough    # append GPU + AppArmor config to /etc/pve/lxc/202.conf, restart container
+just deploy             # run ansible-playbook site.yml (no vault password needed)
+just deploy-check       # dry run (--check --diff)
+just status             # query Ollama API — version, models, GPU
+just models             # list downloaded models and sizes
+just pull mistral       # pull a model by name
+just logs               # tail Ollama systemd logs
 just gpu                # nvidia-smi on container 202
-just vault-edit         # edit encrypted secrets
-just ssh                # SSH into container 202
+just ssh                # SSH into container 202 as root
 just ct-stop            # stop LXC container 202
 just ct-start           # start LXC container 202
 ```
 
 ---
 
-## Secrets
+## Credentials
 
-Secrets (Open WebUI admin password, etc.) are stored in `ansible/group_vars/ollama_hosts/vault.yml` encrypted with Ansible Vault.
-
-```bash
-# Create
-ansible-vault create ansible/group_vars/ollama_hosts/vault.yml
-
-# Edit
-ansible-vault edit ansible/group_vars/ollama_hosts/vault.yml
-
-# Run playbook with vault
-ansible-playbook ansible/site.yml --ask-vault-pass
-# or with a password file:
-ansible-playbook ansible/site.yml --vault-password-file ~/.vault_pass
+**Proxmox API token** (`secrets.auto.tfvars`, gitignored):
+```hcl
+proxmox_api_token_id     = "root@pam!terraform"
+proxmox_api_token_secret = "..."
 ```
+Token must belong to `root@pam` — other users are blocked from privileged container operations.
+
+**Ansible secrets** (`vault.yml`): not currently encrypted. WebUI admin credentials are hardcoded in `group_vars/ollama_hosts/vars.yml` and should be moved to a proper vault before exposing services externally.
+
+---
+
+## Known Gotchas
+
+| Issue | Fix applied |
+|---|---|
+| Proxmox API token cannot create privileged containers | `just provision` uses `pct create` via SSH instead of `terraform apply` |
+| Docker blocked by AppArmor inside privileged LXC | `lxc.apparmor.profile: unconfined` in LXC conf + `--security-opt apparmor=unconfined` in each `docker run` |
+| Ollama install script needs `zstd` | Added as apt prerequisite in the `ollama` role |
+| AnythingLLM SQLite can't write to mounted volume | Storage dir created with `mode: 0777` |
+| `just` heredocs can't contain `lxc.*` lines | GPU config lives in `scripts/lxc-202-gpu.conf`, applied via `scp` |
 
 ---
 
 ## Reference
 
-- [Docker Ollama Reference](docs/docker-ollama-reference.md) — archived Docker knowledge
+- [LXC GPU Passthrough Plan](docs/plans/Completed/lxc-gpu-passthrough.md) — completed, full lessons learned
 - [Proxmox LXC Terraform Guide](docs/proxmox-lxc-terraform-guide.md)
-- [Migration Plan](docs/plans/migrate-to-terraform-ansible.md)
+- [Docker Ollama Reference](docs/docker-ollama-reference.md) — archived Docker knowledge

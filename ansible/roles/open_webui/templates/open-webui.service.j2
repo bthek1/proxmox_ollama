@@ -8,6 +8,7 @@ Restart=always
 ExecStartPre=-/usr/bin/docker rm -f open-webui
 ExecStart=/usr/bin/docker run --rm \
   --name open-webui \
+  --security-opt apparmor=unconfined \
   -p {{ open_webui_port }}:8080 \
   -e OLLAMA_BASE_URL={{ open_webui_ollama_url }} \
   -e OLLAMA_SHOW_ADMIN_DETAILS=True \

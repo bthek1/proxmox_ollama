@@ -8,6 +8,7 @@ Restart=always
 ExecStartPre=-/usr/bin/docker rm -f anything-llm
 ExecStart=/usr/bin/docker run --rm \
   --name anything-llm \
+  --security-opt apparmor=unconfined \
   -p {{ anything_llm_port }}:3001 \
   -e NODE_ENV=production \
   -e STORAGE_DIR=/app/server/storage \

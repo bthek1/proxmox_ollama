@@ -3,7 +3,7 @@
   ansible.builtin.file:
     path: /opt/anything-llm/storage
     state: directory
-    mode: "0755"
+    mode: "0777"
 
 - name: Write AnythingLLM systemd service
   ansible.builtin.template:
