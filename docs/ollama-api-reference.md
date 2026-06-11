@@ -17,7 +17,7 @@ Ollama is running on LXC container 202 in Proxmox and is accessible from any mac
 | Model | Size | Use for |
 |-------|------|---------|
 | `qwen2.5:3b` | 1.93 GB | General generation, chat |
-| `analysis-assistant` | 1.93 GB | Custom model built on qwen2.5:3b — analysis-focused system prompt |
+| `qwen3:8b` | 5.23 GB | Larger generation — tools + thinking |
 | `nomic-embed-text` | 0.27 GB | Embeddings / RAG — 768-dimensional vectors |
 
 Pull additional models via SSH:

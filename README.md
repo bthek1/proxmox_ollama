@@ -30,7 +30,7 @@ Terraform + Ansible infrastructure for running Ollama on a Proxmox LXC container
 | Model | Size | Purpose |
 |-------|------|---------|
 | `qwen2.5:3b` | 1.93 GB | Default generation model |
-| `analysis-assistant` | 1.93 GB | Custom model built on qwen2.5:3b via Modelfile |
+| `qwen3:8b` | 5.23 GB | Larger generation model (tools + thinking) |
 | `nomic-embed-text` | 0.27 GB | Embeddings (768-dim vectors, used by AnythingLLM RAG) |
 
 ---
@@ -130,7 +130,7 @@ just ct-start           # start LXC container 202
 
 ```bash
 just test-api                                   # defaults: qwen2.5:3b + nomic-embed-text
-MODEL=analysis-assistant just test-api          # use a different generation model
+MODEL=qwen3:8b just test-api                    # use a different generation model
 EMBED_MODEL=mxbai-embed-large just test-api     # use a different embedding model
 ```
 

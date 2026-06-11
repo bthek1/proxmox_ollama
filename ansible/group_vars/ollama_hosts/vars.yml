@@ -1,7 +1,9 @@
 ---
 # Ollama
 ollama_model_default: qwen2.5:3b
-ollama_models_extra: []
+ollama_models_extra:
+  - qwen3:8b
+  - nomic-embed-text
 ollama_num_parallel: "1"
 ollama_max_loaded_models: "2"
 ollama_flash_attention: "1"

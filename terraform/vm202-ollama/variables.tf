@@ -42,13 +42,13 @@ variable "template_file_id" {
 variable "cores" {
   description = "Number of vCPU cores"
   type        = number
-  default     = 8
+  default     = 4
 }
 
 variable "memory_mb" {
   description = "RAM in MB"
   type        = number
-  default     = 16384 # 16 GB
+  default     = 4096 # 4 GB
 }
 
 variable "disk_size" {

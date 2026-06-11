@@ -1,7 +1,7 @@
 """Test the Ollama API on LXC 202 (192.168.2.202).
 
 Run:  uv run python scripts/test_ollama.py
-      MODEL=analysis-assistant uv run python scripts/test_ollama.py
+      MODEL=qwen3:8b uv run python scripts/test_ollama.py
 """
 
 import os

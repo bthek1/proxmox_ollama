@@ -81,7 +81,7 @@ just ssh                # SSH into container 202
 
 ## Default Model
 
-`qwen2.5:3b` — small, fits in limited VRAM scenarios. Custom model `analysis-assistant` built on top via Modelfile (see `ansible/roles/ollama/templates/Modelfile.j2`).
+`qwen2.5:3b` — small, fits in limited VRAM scenarios. Also deployed: `qwen3:8b` (larger generation model, tools + thinking) and `nomic-embed-text` (embeddings for AnythingLLM RAG). Extra models are listed in `ollama_models_extra` in `ansible/group_vars/ollama_hosts/vars.yml`.
 
 ## Reference Docs
 

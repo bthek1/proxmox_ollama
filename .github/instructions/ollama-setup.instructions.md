@@ -99,19 +99,10 @@ docker exec ollama ollama stop llama3.2         # unload from GPU memory only
 
 ## Custom Models (Modelfile)
 
-The project ships with `Modelfile` — a pre-configured analysis assistant built on `qwen2.5:3b`.
-
-**Build and register it:**
-
-```bash
-docker cp Modelfile ollama:/tmp/Modelfile
-docker exec ollama ollama create analysis-assistant -f /tmp/Modelfile
-```
-
-**Manually create your own Modelfile:**
+You can define a custom model with a `Modelfile`:
 
 ```
-FROM llama3.2
+FROM qwen2.5:3b
 
 SYSTEM "You are a helpful coding assistant. Answer concisely."
 
