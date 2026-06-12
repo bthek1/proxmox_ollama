@@ -4,9 +4,10 @@ ollama_model_default: qwen2.5:3b
 ollama_models_extra:
   - qwen3:8b
   - nomic-embed-text
-ollama_num_parallel: "1"
-ollama_max_loaded_models: "2"
+ollama_num_parallel: "4"
+ollama_max_loaded_models: "3"  # classifier + main LLM + embedder
 ollama_flash_attention: "1"
+ollama_kv_cache_type: q8_0     # requires flash attention
 ollama_keep_alive: 10m
 ollama_host: "0.0.0.0:11434"
 
